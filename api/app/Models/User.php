@@ -37,67 +37,30 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = ["name", "email", "password"];
+    protected $fillable = [
+        'email',
+        'password',
+        'is_admin',
+    ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = ["password"];
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
-    public int $id;
-    public string $email;
-    public string $password;
-    public int $is_admin;
-    /**
-     * @var Illuminate\Support\Carbon|null
-     */
-    public Carbon|null $created_at;
-    /**
-     * @var Illuminate\Support\Carbon|null
-     */
-    public Carbon|null $updated_at;
-    /**
-     * @var App\Models\Employee|null
-     */
-    public Employee|null $employee;
-    /**
-     * @var Illuminate\Notifications\DatabaseNotificationCollection<int,Illuminate\Notifications\DatabaseNotification>
-     */
-    public DatabaseNotificationCollection $notifications;
-    public int|null $notifications_count;
-    /**
-     * @var Illuminate\Database\Eloquent\Collection<int,Laravel\Sanctum\PersonalAccessToken>
-     */
-    public Collection $tokens;
-    public int|null $tokens_count;
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
-            "email_verified_at" => "datetime",
-            "password" => "hashed",
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
     }
-    /**
-     * @return HasOne<Employee,User>
-     */
-    public function employee(): HasOne
+
+    public function employee()
     {
-        return $this->hasOne(Employee::class, "user_id");
+        return $this->hasOne(Employee::class, 'user_id');
     }
 }
