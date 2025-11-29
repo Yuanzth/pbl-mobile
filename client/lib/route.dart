@@ -1,5 +1,6 @@
 import 'package:client/screens/home_screen.dart';
 import 'package:client/screens/login_screen.dart';
+import 'package:client/screens/employee_screen.dart';
 import 'package:go_router/go_router.dart';
 
 final GoRouter router = GoRouter(
@@ -17,6 +18,11 @@ final GoRouter router = GoRouter(
       path: "/login",
       name: "login",
       builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: "/employees",
+      name: "employee",
+      builder: (context, state) => const EmployeeScreen(),
     ),
   ],
 );
