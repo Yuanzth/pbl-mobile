@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 Future<void> main() async {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  await Future.delayed(Duration(seconds: 2));
-  FlutterNativeSplash.remove();
+  WidgetsFlutterBinding.ensureInitialized();
 
   runApp(const MyApp());
 }

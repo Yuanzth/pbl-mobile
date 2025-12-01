@@ -14,7 +14,7 @@ import 'widgets/navbar_user.dart';
 final GoRouter router = GoRouter(
   initialLocation: "/login",
   redirect: (context, state) {
-    // return AuthService.instance.redirectUser(state);
+    return AuthService.instance.redirectUser(state);
   },
 
   routes: [

@@ -39,17 +39,18 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!context.mounted) {
       return;
     }
+
     if (!login["success"]) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Login failed")));
+      ).showSnackBar(SnackBar(content: Text("Email Atau Password Salah")));
       return;
     }
     if (login["isAdmin"]) {
+      context.go("/admin");
+    } else {
       context.go("/home");
-      return;
     }
-    context.go("/home");
   }
 
   Widget header() {
