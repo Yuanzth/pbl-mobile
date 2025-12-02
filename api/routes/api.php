@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\AuthController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeProfileController;
 use App\Http\Controllers\Api\EmployeeManagementController;
@@ -9,12 +9,15 @@ use App\Http\Controllers\Api\PositionController;
 use App\Http\Controllers\Api\DepartmentController;
 use Illuminate\Support\Facades\Route;
 
+Route::get("/user/{id}", [UserController::class, "show_user"])->middleware(
+    "auth:sanctum",
+);
+Route::get("/users", [UserController::class, "show_users"])->middleware(
+    "auth:sanctum",
+);
 // Auth routes
 Route::post("/login", [AuthController::class, "login"]);
 Route::post("/register", [AuthController::class, "register"]);
-
-// User routes
-Route::get("/user/{id}", [UserController::class, "show_user"]);
 
 // Employee routes (read only)
 Route::get('employees', [EmployeeController::class, 'index']);

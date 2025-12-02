@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class Navbar extends StatelessWidget {
+class NavbarAdmin extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
-  const Navbar({super.key, required this.navigationShell});
+  const NavbarAdmin({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class Navbar extends StatelessWidget {
       },
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Employee"),
       ],
     );
   }

@@ -1,3 +1,4 @@
+import 'package:client/services/user_service.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -5,6 +6,19 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: Text("Center")));
+    return Scaffold(
+      appBar: AppBar(title: Text("HRIS")),
+      body: FutureBuilder(
+        future: UserService.instance.getLoggedInUser(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return Center(
+            child: Text(snapshot.data?.data?.employee?.address ?? ""),
+          );
+        },
+      ),
+    );
   }
 }

@@ -15,6 +15,8 @@ class EmployeeModel {
   final PositionModel? position;
   final DepartmentModel? department;
   final UserModel? user;
+  final String createdAt;
+  final String updatedAt;
 
   EmployeeModel({
     required this.id,
@@ -29,21 +31,27 @@ class EmployeeModel {
     this.position,
     this.department,
     this.user,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   String get fullName => '$firstName $lastName';
 
   factory EmployeeModel.fromJson(Map<String, dynamic> json) {
     return EmployeeModel(
-      id: json['id'],
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
       firstName: json['first_name'] ?? '',
       lastName: json['last_name'] ?? '',
       gender: json['gender'] ?? '',
       address: json['address'] ?? '',
-      employmentStatus: json['employment_status'] ?? 'aktif',
-      positionId: json['position_id'],
-      departmentId: json['department_id'],
-      userId: json['user_id'],
+      employmentStatus: json['employment_status'] ?? json['employement_status'] ?? 'aktif',
+      positionId: json['position_id'] is int
+          ? json['position_id']
+          : int.tryParse(json['position_id'].toString()),
+      departmentId: json['department_id'] ?? json['departement_id'] is int
+          ? (json['department_id'] ?? json['departement_id'])
+          : int.tryParse((json['department_id'] ?? json['departement_id']).toString()),
+      userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id'].toString()) ?? 0,
       position: json['position'] != null
           ? PositionModel.fromJson(json['position'])
           : null,
@@ -51,10 +59,13 @@ class EmployeeModel {
           ? DepartmentModel.fromJson(json['department'])
           : null,
       user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
+      createdAt: json['created_at'] ?? '',
+      updatedAt: json['updated_at'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'first_name': firstName,
     'last_name': lastName,
     'gender': gender,
@@ -63,6 +74,8 @@ class EmployeeModel {
     'position_id': positionId,
     'department_id': departmentId,
     'user_id': userId,
+    'created_at': createdAt,
+    'updated_at': updatedAt,
   };
 
   // For profile update (employee only)
