@@ -134,7 +134,7 @@ Widget profileSection(BuildContext context, UserModel<EmployeeModel>? user) {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    context.push("");
+                    context.push("/payroll");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CB050),

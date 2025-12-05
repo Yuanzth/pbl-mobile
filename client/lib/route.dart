@@ -87,21 +87,13 @@ final GoRouter router = GoRouter(
             ),
           ],
         ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: "/payroll",
-              builder: (context, state) => const PayrollScreen(),
-            ),
-          ],
-        ),
       ],
     ),
-
     GoRoute(
-      path: "/login",
-      builder: (context, state) => const LoginScreen(),
+      path: "/payroll",
+      builder: (context, state) => const PayrollScreen(),
     ),
+    GoRoute(path: "/login", builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: "/forgot-password",
       builder: (context, state) => const ForgotPasswordScreen(),

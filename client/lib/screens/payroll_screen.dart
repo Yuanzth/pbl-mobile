@@ -1,5 +1,5 @@
+import 'package:client/widgets/custom_appbar.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 class PayrollScreen extends StatelessWidget {
   const PayrollScreen({super.key});
@@ -7,6 +7,7 @@ class PayrollScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: CustomAppbar(title: ""),
       backgroundColor: Colors.white,
       body: Stack(
         children: [
@@ -29,21 +30,6 @@ class PayrollScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Tombol back
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.black),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
                   // Judul & subtitle
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -62,10 +48,7 @@ class PayrollScreen extends StatelessWidget {
                           SizedBox(height: 4),
                           Text(
                             "Pembayaran gaji (per jam)",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
                         ],
                       ),
@@ -153,28 +136,6 @@ class PayrollScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Text("Rp 250.000 /jam"),
-                            ),
-
-                            const SizedBox(height: 30),
-
-                            // Tombol Tunggak Gaji
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14),
-                                  backgroundColor: const Color(0xFF0066FF),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Tunggak Gaji",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
                             ),
                           ],
                         ),
