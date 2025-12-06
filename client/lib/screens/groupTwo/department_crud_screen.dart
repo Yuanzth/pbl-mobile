@@ -1,7 +1,12 @@
+import 'package:latlong2/latlong.dart';
+import 'package:client/widgets/location_preview_card.dart';
+import 'package:client/widgets/map_picker_dialog.dart';
 import 'package:client/models/department_model.dart';
 import 'package:client/services/department_service.dart';
+import 'package:client/widgets/custom_button.dart';
 import 'package:client/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class DepartmentCrudScreen extends StatefulWidget {
   const DepartmentCrudScreen({super.key});
@@ -14,6 +19,7 @@ class _DepartmentCrudScreenState extends State<DepartmentCrudScreen> {
   List<DepartmentModel> _departments = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -22,6 +28,8 @@ class _DepartmentCrudScreenState extends State<DepartmentCrudScreen> {
   }
 
   Future<void> _loadDepartments() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -49,219 +57,717 @@ class _DepartmentCrudScreenState extends State<DepartmentCrudScreen> {
     }
   }
 
-  void _showForm([DepartmentModel? dept]) {
+  // Di dalam method _showForm, ubah bagian StatefulBuilder:
+  Future<void> _showForm([DepartmentModel? dept]) async {
     final isEdit = dept != null;
     final nameCtrl = TextEditingController(text: isEdit ? dept.name : '');
-    final latCtrl = TextEditingController(
-      text: isEdit ? dept.latitude.toString() : '',
-    );
-    final lngCtrl = TextEditingController(
-      text: isEdit ? dept.longitude.toString() : '',
-    );
-    final radiusCtrl = TextEditingController(
-      text: isEdit ? dept.radiusMeters.toString() : '',
-    );
 
-    showDialog(
+    // Ganti controller manual dengan state untuk peta
+    double? latitude = isEdit ? dept.latitude : null;
+    double? longitude = isEdit ? dept.longitude : null;
+    int? radius = isEdit ? dept.radiusMeters : null;
+
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(isEdit ? 'Edit Departemen' : 'Tambah Departemen'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomTextField(
-                  controller: nameCtrl,
-                  label: "Nama Departemen",
-                  hintText: "Contoh: Marketing",
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: latCtrl,
-                  label: "Latitude",
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  hintText: "Contoh: -6.200000",
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: lngCtrl,
-                  label: "Longitude",
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  hintText: "Contoh: 106.816666",
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: radiusCtrl,
-                  label: "Radius (meter)",
-                  keyboardType: TextInputType.number,
-                  hintText: "100",
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromRGBO(29, 97, 231, 1),
-            ),
-            onPressed: () async {
-              final data = {
-                'name': nameCtrl.text.trim(),
-                'latitude': double.tryParse(latCtrl.text) ?? 0.0,
-                'longitude': double.tryParse(lngCtrl.text) ?? 0.0,
-                'radius_meters': int.tryParse(radiusCtrl.text) ?? 0,
-              };
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          bool isSaving = false;
 
-              try {
-                if (isEdit) {
-                  await DepartmentService.instance.updateDepartment(
-                    dept!.id,
-                    data,
-                  );
-                } else {
-                  await DepartmentService.instance.createDepartment(data);
-                }
+          // Function untuk buka peta
+          Future<void> openMapPicker() async {
+            if (!mounted) return;
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  _loadDepartments();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isEdit
-                            ? 'Departemen diperbarui'
-                            : 'Departemen ditambahkan',
-                      ),
-                    ),
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
-              }
+            final locationResult = await Navigator.push(
+              dialogContext,
+              MaterialPageRoute(
+                builder: (context) => MapPickerDialog(
+                  initialLocation: (latitude != null && longitude != null)
+                      ? LatLng(latitude!, longitude!)
+                      : null,
+                  initialRadius: radius?.toDouble() ?? 100.0,
+                  onLocationSelected: (LatLng location, double radiusValue) {
+                    setDialogState(() {
+                      latitude = location.latitude;
+                      longitude = location.longitude;
+                      radius = radiusValue.round();
+                    });
+                  },
+                ),
+              ),
+            );
+            // locationResult tidak digunakan, jadi tidak perlu disimpan
+          }
+
+          return PopScope(
+            canPop: !isSaving,
+            onPopInvoked: (didPop) {
+              // Handle pop jika perlu
             },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+            child: Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              backgroundColor: const Color(0xFFF6F6F6),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6F6F6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isEdit ? 'Edit Departemen' : 'Tambah Departemen',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1B7FA8),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                            onPressed: isSaving
+                                ? null
+                                : () => Navigator.pop(dialogContext, false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
 
-  Future<void> _deleteDepartment(int id) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: const Text('Yakin ingin menghapus departemen ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+                      // Nama Departemen (tetap text field)
+                      CustomTextField(
+                        controller: nameCtrl,
+                        label: "Nama Departemen",
+                        hintText: "Contoh: Marketing",
+                        enabled: !isSaving,
+                      ),
+                      const SizedBox(height: 24),
 
-    if (confirm == true) {
-      try {
-        await DepartmentService.instance.deleteDepartment(id);
-        _loadDepartments();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Departemen berhasil dihapus')),
+                      // Card untuk preview dan pilih lokasi
+                      LocationPreviewCard(
+                        latitude: latitude,
+                        longitude: longitude,
+                        radius: radius,
+                        onPickLocation: isSaving ? null : openMapPicker,
+                        isLoading: isSaving,
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      isSaving
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF1B7FA8),
+                              ),
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: CustomButton(
+                                    backgroundColor: Colors.grey[300],
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, false),
+                                    child: const Text(
+                                      'Batal',
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: CustomButton(
+                                    backgroundColor: const Color(0xFF1B7FA8),
+                                    onPressed: () async {
+                                      // Validasi input
+                                      if (nameCtrl.text.trim().isEmpty) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            dialogContext,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              backgroundColor: Colors.red,
+                                              content: Text(
+                                                'Nama departemen harus diisi',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
+                                      if (latitude == null ||
+                                          longitude == null ||
+                                          radius == null) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            dialogContext,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              backgroundColor: Colors.red,
+                                              content: Text(
+                                                'Silakan pilih lokasi di peta',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
+                                      if (radius == null || radius! <= 0) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            dialogContext,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              backgroundColor: Colors.red,
+                                              content: Text(
+                                                'Radius harus lebih dari 0',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
+                                      setDialogState(() {
+                                        isSaving = true;
+                                      });
+
+                                      try {
+                                        final data = {
+                                          'name': nameCtrl.text.trim(),
+                                          'latitude': latitude!,
+                                          'longitude': longitude!,
+                                          'radius_meters': radius!,
+                                        };
+
+                                        if (isEdit) {
+                                          await DepartmentService.instance
+                                              .updateDepartment(dept!.id, data);
+                                        } else {
+                                          await DepartmentService.instance
+                                              .createDepartment(data);
+                                        }
+
+                                        // Berhasil, kembalikan true
+                                        if (mounted) {
+                                          Navigator.pop(dialogContext, true);
+                                        }
+                                      } catch (e) {
+                                        // Jika error, kembalikan isSaving ke false
+                                        setDialogState(() {
+                                          isSaving = false;
+                                        });
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            dialogContext,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              backgroundColor: Colors.red,
+                                              content: Text(
+                                                'Gagal menyimpan: $e',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Simpan',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           );
-        }
+        },
+      ),
+    );
+
+    // Handle setelah dialog selesai
+    if (result == true && mounted) {
+      // Tampilkan loading
+      setState(() {
+        _isProcessing = true;
+      });
+
+      try {
+        // Load ulang data dari server
+        await _loadDepartments();
+
+        setState(() {
+          _isProcessing = false;
+        });
+
+        // Tampilkan snackbar sukses
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1B7FA8),
+            content: Text(
+              isEdit
+                  ? 'Departemen berhasil diperbarui'
+                  : 'Departemen berhasil ditambahkan',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));
-        }
+        setState(() {
+          _isProcessing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text(
+              'Gagal memuat ulang data: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kelola Departemen'),
-        backgroundColor: const Color.fromRGBO(29, 97, 231, 1),
-        foregroundColor: Colors.white,
+  Future<void> _deleteDepartment(int id) async {
+    // Dapatkan departemen yang akan dihapus untuk ditampilkan di konfirmasi
+    final departmentToDelete = _departments.firstWhere((dept) => dept.id == id);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFFF6F6F6),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6F6F6),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.warning, size: 60, color: Colors.orange),
+              const SizedBox(height: 16),
+              const Text(
+                'Konfirmasi Hapus',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Yakin ingin menghapus departemen "${departmentToDelete.name}"?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      backgroundColor: Colors.grey[300],
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                        'Batal',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomButton(
+                      backgroundColor: Colors.red,
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        'Hapus',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
-      body: RefreshIndicator(onRefresh: _loadDepartments, child: _buildBody()),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color.fromRGBO(29, 97, 231, 1),
-        child: const Icon(Icons.add, color: Colors.white),
-        onPressed: () => _showForm(),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        _isProcessing = true;
+      });
+
+      try {
+        await DepartmentService.instance.deleteDepartment(id);
+
+        // Hapus dari local state
+        setState(() {
+          _departments.removeWhere((dept) => dept.id == id);
+          _isProcessing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1B7FA8),
+            content: Text(
+              'Departemen "${departmentToDelete.name}" berhasil dihapus',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          _isProcessing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text(
+              'Gagal menghapus: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildDepartmentCard(DepartmentModel department) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  department.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1B7FA8),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    color: const Color(0xFF1B7FA8),
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _showForm(department),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    color: Colors.red,
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _deleteDepartment(department.id),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Latitude',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          department.latitude.toStringAsFixed(6),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Longitude',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          department.longitude.toStringAsFixed(6),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Radius',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${department.radiusMeters} meter',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF1B7FA8)),
+      );
     }
 
     if (_errorMessage != null) {
-      return Center(child: Text('Error: $_errorMessage'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error, size: 60, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'Terjadi kesalahan',
+              style: TextStyle(fontSize: 18, color: Colors.black87),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 24),
+            CustomButton(
+              backgroundColor: const Color(0xFF1B7FA8),
+              onPressed: _loadDepartments,
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     if (_departments.isEmpty) {
-      return const Center(child: Text('Belum ada departemen'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.business, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 24),
+            const Text(
+              'Belum ada departemen',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tambahkan departemen pertama Anda',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _departments.length,
-      itemBuilder: (context, i) {
-        final d = _departments[i];
-        return Card(
-          child: ListTile(
-            title: Text(
-              d.name,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              'Lat: ${d.latitude.toStringAsFixed(6)} | '
-              'Lng: ${d.longitude.toStringAsFixed(6)}\n'
-              'Radius: ${d.radiusMeters} m',
-            ),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => _showForm(d),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'List data departemen',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteDepartment(d.id),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${_departments.length} departemen ditemukan',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            color: const Color(0xFF1B7FA8),
+            onRefresh: _loadDepartments,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              children: [
+                ..._departments.map(
+                  (department) => _buildDepartmentCard(department),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1B9FE2),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: const Color(0xFF1B9FE2),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Kelola Departemen',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Container(color: const Color(0xFF1B9FE2)),
+          Positioned.fill(
+            top: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF6F6F6),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+              ),
+              child: _isProcessing
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF1B7FA8),
+                      ),
+                    )
+                  : _buildBody(),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _isProcessing
+          ? null
+          : FloatingActionButton(
+              backgroundColor: const Color(0xFF1B7FA8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 28),
+              onPressed: () => _showForm(),
+            ),
     );
   }
 }
