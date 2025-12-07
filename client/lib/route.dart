@@ -21,6 +21,7 @@ import 'package:client/screens/Group_1/Admin/list_template_screen.dart';
 import 'package:client/screens/Group_1/Admin/edit_template_screen.dart';
 import 'package:client/screens/Group_1/Admin/izin_laporan_menu.dart';
 import 'package:client/screens/Group_1/Admin/admin_izin_manager.dart';
+import 'package:client/screens/Group_1/Admin/department_detail_page.dart';
 import 'package:client/screens/Group_1/Admin/IzinDetailPage.dart';
 
 final storage = FlutterSecureStorage();
@@ -185,6 +186,14 @@ final GoRouter router = GoRouter(
       builder: (context, state) {
         final data = state.extra as Map;
         return EditTemplateScreen(template: data);
+      },
+    ),
+
+    GoRoute(
+      path: '/admin/department-detail',
+      builder: (context, state) {
+        final dept = state.extra as Map<String, dynamic>;
+        return DepartmentDetailPage(departmentData: dept);
       },
     ),
   ],

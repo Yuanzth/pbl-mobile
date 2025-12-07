@@ -47,7 +47,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
@@ -92,7 +91,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
               return CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // HEADER (SAMA seperti sebelum)
                   SliverToBoxAdapter(
                     child: Container(
                       decoration: const BoxDecoration(
@@ -134,7 +132,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
                             ),
                             const SizedBox(height: 30),
 
-                            // STAT CARDS (SAMA seperti sebelum)
                             Row(
                               children: [
                                 Expanded(
@@ -164,7 +161,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 40)),
 
-                  // BUTTON SEMUA KARYAWAN (SAMA)
                   SliverToBoxAdapter(
                     child: Center(
                       child: GestureDetector(
@@ -198,7 +194,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                  // GRID DEPARTEMEN (SAMA)
                   SliverPadding(
                     padding: EdgeInsets.only(
                       left: 20,
@@ -217,8 +212,15 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final dept = data.departments[index];
                         return _buildDepartmentCard(
-                          dept["name"],
-                          dept["count"],
+                          name: dept["name"],
+                          count: dept["count"],
+                          onTap: () {
+                            // contoh: buka halaman detail departemen
+                            context.push(
+                              "/admin/department-detail",
+                              extra: dept,
+                            );
+                          },
                         );
                       }, childCount: data.departments.length),
                     ),
@@ -231,10 +233,6 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
       ),
     );
   }
-
-  // =============================
-  //      UI COMPONENTS (SAMA)
-  // =============================
 
   Widget _buildCleanStatCard({
     required IconData icon,
@@ -295,53 +293,64 @@ class _AdminIzinDashboardState extends State<AdminIzinDashboard> {
     );
   }
 
-  Widget _buildDepartmentCard(String name, String count) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF00C4D6),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 32, color: const Color(0xFF00A8E8)),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            count,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+  Widget _buildDepartmentCard({
+    required String name,
+    required String count,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF00C4D6),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-          ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.person,
+                size: 32,
+                color: const Color(0xFF00A8E8),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              count,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
