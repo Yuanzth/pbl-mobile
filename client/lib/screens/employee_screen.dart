@@ -1,5 +1,7 @@
 import 'package:client/models/employee_model.dart';
 import 'package:client/services/employee_service.dart';
+import 'package:client/services/export_employee_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -93,13 +95,92 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
   }
 
   Future<void> _exportToExcel() async {
-    // TODO: Implement Excel export
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fitur export Excel akan segera hadir'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    // ✅ CHECK IF EMPTY
+    if (_employees.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ada data untuk di-export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // ✅ SHOW LOADING
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Mengekspor data ke Excel...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+          backgroundColor: Color(0xFF22A9D6),
+        ),
+      );
+
+      // ✅ EXPORT TO EXCEL
+      final filePath = await ExcelService.instance.exportEmployees(_employees);
+
+      // ✅ HIDE LOADING
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      if (filePath != null && mounted) {
+        // ✅ SUCCESS
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '✅ File berhasil disimpan!',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text('Lokasi: $filePath', style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            backgroundColor: Colors.green[600],
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'BUKA',
+              textColor: Colors.white,
+              onPressed: () {
+                ExcelService.instance.openFile(filePath);
+              },
+            ),
+          ),
+        );
+      } else if (mounted) {
+        // ✅ FAILED
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Gagal mengekspor data'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
