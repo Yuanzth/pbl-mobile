@@ -19,16 +19,12 @@ class IzinService extends BaseService<IzinModel> {
   Future<List<IzinModel>> loadIzinList() async {
     final res = await dio.get("${Constant.apiUrl}/izin-list");
 
-    return parseData(
-      res.data,
-      "data",
-      (json) => IzinModel.fromJson(json),
-    );
+    return parseData(res.data, "data", (json) => IzinModel.fromJson(json));
   }
 
   // ---------------- IZIN DETAIL ----------------
   Future<IzinModel?> loadIzinDetail(int id) async {
-    final res = await _dio.get("${Constant.apiUrl}/izin-detail/$id");
+    final res = await dio.get("${Constant.apiUrl}/izin-detail/$id");
 
     if (res.data["data"] == null) return null;
 
@@ -37,7 +33,7 @@ class IzinService extends BaseService<IzinModel> {
 
   // ---------------- UPDATE STATUS ----------------
   Future<bool> updateStatus(int id, int newStatus, String notes) async {
-    final res = await _dio.post(
+    final res = await dio.post(
       "${Constant.apiUrl}/izin-update/$id",
       data: {"status": newStatus, "notes": notes},
     );

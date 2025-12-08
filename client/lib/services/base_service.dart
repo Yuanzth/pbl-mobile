@@ -7,6 +7,7 @@ class BaseService<T> {
   @protected
   final Dio dio = Dio(
     BaseOptions(
+      baseUrl: Constant.apiUrl,
       headers: {
         "ngrok-skip-browser-warning": "true",
         "Accept": "application/json",

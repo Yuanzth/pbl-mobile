@@ -28,6 +28,9 @@ Route::get('/izin-dashboard', IzinDashboardController::class)->middleware(
 Route::get('/izin-list', [IzinDashboardController::class, 'izinList'])->middleware(
     "auth:sanctum",
 );
+Route::get('/izin-detail/{id}', [IzinDashboardController::class, 'IzinDetail'])
+    ->middleware('auth:sanctum'
+);
 Route::post('/izin-update/{id}', [IzinDashboardController::class, 'updateStatus'])->middleware(
     "auth:sanctum",
 );

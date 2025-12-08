@@ -10,7 +10,6 @@ import 'package:client/widgets/navbar_admin.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'screens/admin_screen.dart';
 import 'widgets/navbar_user.dart';
 import 'package:client/screens/placeholder_screen.dart';
 import 'package:client/screens/Group_1/home_screen_admin.dart';
@@ -24,14 +23,13 @@ import 'package:client/screens/Group_1/Admin/izin_laporan_menu.dart';
 import 'package:client/screens/Group_1/Admin/admin_izin_manager.dart';
 import 'package:client/screens/Group_1/Admin/department_detail_page.dart';
 import 'package:client/screens/Group_1/Admin/IzinDetailPage.dart';
-import 'package:client/screens/Group_1/Karyawan/employee_izin_form.dart';
 
 final storage = FlutterSecureStorage();
 
 final GoRouter router = GoRouter(
   initialLocation: "/",
-  // initialLocation: "/karyawan/pengajuan",
 
+  // initialLocation: "/karyawan/pengajuan",
   redirect: (context, state) {
     return AuthService.instance.redirectUser(state);
   },
@@ -69,22 +67,26 @@ final GoRouter router = GoRouter(
             GoRoute(
               path: '/absensi',
               name: 'absensi',
-              builder: (context, state) => const PlaceholderScreen(title: 'Absensi'),
+              builder: (context, state) =>
+                  const PlaceholderScreen(title: 'Absensi'),
             ),
             GoRoute(
               path: '/karyawan',
               name: 'karyawan',
-              builder: (context, state) => const PlaceholderScreen(title: 'Karyawan'),
+              builder: (context, state) =>
+                  const PlaceholderScreen(title: 'Karyawan'),
             ),
             GoRoute(
               path: '/payroll',
               name: 'payroll',
-              builder: (context, state) => const PlaceholderScreen(title: 'Payroll'),
+              builder: (context, state) =>
+                  const PlaceholderScreen(title: 'Payroll'),
             ),
             GoRoute(
               path: '/pengaturan',
               name: 'pengaturan',
-              builder: (context, state) => const PlaceholderScreen(title: 'Pengaturan'),
+              builder: (context, state) =>
+                  const PlaceholderScreen(title: 'Pengaturan'),
             ),
 
             // Letter Management
@@ -93,6 +95,13 @@ final GoRouter router = GoRouter(
               builder: (context, state) {
                 final letters = state.extra as List<dynamic>;
                 return AllLettersPage(letters: letters);
+              },
+            ),
+            GoRoute(
+              path: '/admin/department-detail',
+              builder: (context, state) {
+                final dept = state.extra as Map<String, dynamic>;
+                return DepartmentDetailPage(departmentData: dept);
               },
             ),
             GoRoute(
@@ -173,7 +182,11 @@ final GoRouter router = GoRouter(
       ],
     ),
 
-    GoRoute(path: "/login", name:'login', builder: (context, state) => const LoginScreen()),
+    GoRoute(
+      path: "/",
+      name: 'login',
+      builder: (context, state) => const LoginScreen(),
+    ),
     GoRoute(
       path: "/forgot-password",
       builder: (context, state) => const ForgotPasswordScreen(),
@@ -202,7 +215,6 @@ final GoRouter router = GoRouter(
     //   name: 'kelola_izin',
     //   builder: (context, state) => const AdminIzinManager(),
     // ),
-
     GoRoute(
       path: '/admin/izin/detail/:id',
       builder: (context, state) {
@@ -212,11 +224,11 @@ final GoRouter router = GoRouter(
     ),
 
     // PLACEHOLDER ROUTES FOR FUTURE SCREENS
-    GoRoute(
-      path: '/absensi',
-      name: 'absensi',
-      builder: (context, state) => const PlaceholderScreen(title: 'Absensi'),
-    ),
+    // GoRoute(
+    //   path: '/absensi',
+    //   name: 'absensi',
+    //   builder: (context, state) => const PlaceholderScreen(title: 'Absensi'),
+    // ),
 
     // GoRoute(
     //   path: '/karyawan',
@@ -261,25 +273,17 @@ final GoRouter router = GoRouter(
     //     return EditTemplateScreen(template: data);
     //   },
     // ),
-    GoRoute(
-      path: '/karyawan/pengajuan',
-      builder: (context, state) => const EmployeeIzinForm(),
-    ),
+    // GoRoute(
+    //   path: '/karyawan/pengajuan',
+    //   builder: (context, state) => const EmployeeIzinForm(),
+    // ),
 
-    GoRoute(
-      path: "/admin/template/edit",
-      builder: (context, state) {
-        final data = state.extra as Map;
-        return EditTemplateScreen(template: data);
-      },
-    ),
-
-    GoRoute(
-      path: '/admin/department-detail',
-      builder: (context, state) {
-        final dept = state.extra as Map<String, dynamic>;
-        return DepartmentDetailPage(departmentData: dept);
-      },
-    ),
+    // GoRoute(
+    //   path: "/admin/template/edit",
+    //   builder: (context, state) {
+    //     final data = state.extra as Map;
+    //     return EditTemplateScreen(template: data);
+    //   },
+    // ),
   ],
 );
