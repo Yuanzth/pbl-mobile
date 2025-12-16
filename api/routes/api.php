@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/izin-detail/{id}', [IzinDashboardController::class, 'IzinDetail'])->middleware('auth:sanctum');
     Route::post('/izin-update/{id}', [IzinDashboardController::class, 'updateStatus'])->middleware("auth:sanctum", );
     Route::get('/export-approved-letters', [IzinDashboardController::class, 'exportApprovedLetters'])->middleware("auth:sanctum", );
+    Route::get('/izin-export-department', [IzinDashboardController::class, 'exportDepartmentDetail'])->middleware("auth:sanctum");
 
     // ========== TEMPLATE SURAT ROUTES ==========
     Route::prefix('templates')->group(function () {

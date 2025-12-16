@@ -39,7 +39,7 @@ class IzinDashboardController extends Controller
                 ->get()
                 ->map(function ($dept) {
                     return [
-                        'name'  => $dept->name,
+                        'name' => $dept->name,
                         'count' => "{$dept->total_izin} / {$dept->total_karyawan}"
                     ];
                 });
@@ -81,14 +81,14 @@ class IzinDashboardController extends Controller
                 200,
                 true,
                 [
-                    'total_employees_with_letters'       => $employeesWithLetters,
-                    'total_employees'                    => $totalEmployees,
-                    'total_letters_approved'             => $totalLettersApproved,
-                    'total_letters'                      => $totalLetters,
-                    'departments'                        => $departments,
-                    'all_letters'                        => $allLetters,
+                    'total_employees_with_letters' => $employeesWithLetters,
+                    'total_employees' => $totalEmployees,
+                    'total_letters_approved' => $totalLettersApproved,
+                    'total_letters' => $totalLetters,
+                    'departments' => $departments,
+                    'all_letters' => $allLetters,
                     'total_letters_approved_or_rejected' => $totalApprovedOrRejected,
-                    'total_letters_pending'              => $totalPending,
+                    'total_letters_pending' => $totalPending,
                 ],
                 null
             );
@@ -210,7 +210,7 @@ class IzinDashboardController extends Controller
                 ->where('id', $id)
                 ->update([
                     'status' => $status,
-                    'notes'  => $notes, // <--- Simpan NOTES
+                    'notes' => $notes, // <--- Simpan NOTES
                     'approved_by' => $approvedBy,
                     'approved_at' => now(),
                 ]);
@@ -226,6 +226,128 @@ class IzinDashboardController extends Controller
         } catch (\Exception $e) {
             return ResponseWrapper::make(
                 "Gagal memperbarui",
+                500,
+                false,
+                null,
+                $e->getMessage()
+            );
+        }
+    }
+
+    public function exportDepartmentDetail(Request $request)
+    {
+        try {
+            $departmentName = $request->query('department');
+            $month = (int) $request->query('month', 0);
+
+            if (!$departmentName) {
+                return ResponseWrapper::make(
+                    "Parameter department wajib diisi",
+                    400,
+                    false,
+                    null,
+                    null
+                );
+            }
+
+            $query = DB::table('letters')
+                ->join('employees', 'employees.id', '=', 'letters.employee_id')
+                ->leftJoin('departments', 'departments.id', '=', 'employees.department_id')
+                ->leftJoin('letter_formats', 'letter_formats.id', '=', 'letters.letter_format_id')
+                ->where('letters.status', 1)
+                ->where('departments.name', $departmentName); // ✅ Filter by department
+
+            if ($month >= 1 && $month <= 12) {
+                $query->whereMonth('letters.request_date', $month);
+            }
+
+            $data = $query
+                ->select(
+                    DB::raw("CONCAT(employees.first_name, ' ', employees.last_name) AS employee_name"),
+                    'departments.name as department_name',
+                    DB::raw("COUNT(letters.id) as total_approved_letters"),
+                    DB::raw("GROUP_CONCAT(letter_formats.name ORDER BY letter_formats.name SEPARATOR ',') as cuti_list"),
+                    DB::raw("GROUP_CONCAT(letters.request_date ORDER BY letters.request_date SEPARATOR ',') as cuti_dates")
+                )
+                ->groupBy(
+                    'employees.id',
+                    'employees.first_name',
+                    'employees.last_name',
+                    'departments.name'
+                )
+                ->orderBy('employee_name', 'ASC')
+                ->get();
+
+            if ($data->isEmpty()) {
+                return ResponseWrapper::make(
+                    "Tidak ada data untuk departemen {$departmentName}",
+                    404,
+                    false,
+                    null,
+                    null
+                );
+            }
+
+            // ✅ Generate Excel
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+
+            // ✅ Header
+            $sheet->setCellValue('A1', 'No');
+            $sheet->setCellValue('B1', 'Nama Karyawan');
+            $sheet->setCellValue('C1', 'Total Cuti Disetujui');
+            $sheet->setCellValue('D1', 'Jenis Cuti + Tanggal');
+
+            $sheet->getStyle('A1:D1')->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '00A8E8']
+                ],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ]);
+
+            // ✅ Data rows
+            $row = 2;
+            $no = 1;
+            foreach ($data as $item) {
+                $cutiList = explode(',', $item->cuti_list);
+                $cutiDates = explode(',', $item->cuti_dates);
+
+                $combined = [];
+                foreach ($cutiList as $index => $cutiName) {
+                    $date = $cutiDates[$index] ?? '-';
+                    $combined[] = "{$cutiName} ({$date})";
+                }
+
+                $sheet->setCellValue("A{$row}", $no);
+                $sheet->setCellValue("B{$row}", $item->employee_name);
+                $sheet->setCellValue("C{$row}", $item->total_approved_letters);
+                $sheet->setCellValue("D{$row}", implode(", ", $combined));
+
+                $row++;
+                $no++;
+            }
+
+            // ✅ Auto width
+            foreach (range('A', 'D') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // ✅ Save file
+            $fileName = "Laporan_{$departmentName}.xlsx";
+            $filePath = storage_path("app/public/{$fileName}");
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($filePath);
+
+            return response()->download($filePath)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            return ResponseWrapper::make(
+                "Gagal mengekspor Excel",
                 500,
                 false,
                 null,

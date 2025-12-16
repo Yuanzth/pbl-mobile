@@ -1,30 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
-
-late int totalEmployees;
-late int employeesWithLeave;
-
-class Employee {
-  final String name;
-  final int totalCuti;
-  final List<String> jenisCuti;
-
-  Employee({
-    required this.name,
-    required this.totalCuti,
-    required this.jenisCuti,
-  });
-}
+import 'package:client/services/department_letter_detail_service.dart';
+import 'package:client/models/department_letter_detail_model.dart';
+import 'package:go_router/go_router.dart';
 
 class DepartmentDetailPage extends StatefulWidget {
   final Map<String, dynamic> departmentData;
 
-  const DepartmentDetailPage({
-    super.key,
-    required this.departmentData,
-  });
+  const DepartmentDetailPage({super.key, required this.departmentData});
 
   @override
   State<DepartmentDetailPage> createState() => _DepartmentDetailPageState();
@@ -32,86 +14,186 @@ class DepartmentDetailPage extends StatefulWidget {
 
 class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
   final TextEditingController searchController = TextEditingController();
+  final DepartmentLetterDetailService _service =
+      DepartmentLetterDetailService.instance;
 
-  List<Employee> employees = [];
-  List<Employee> filteredEmployees = [];
+  late int totalEmployees;
+  late int employeesWithLeave;
+
+  List<EmployeeLeaveDetail> employees = [];
+  List<EmployeeLeaveDetail> filteredEmployees = [];
+
+  bool loading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-
-    // =========== DUMMY DATA TESTING =============
-    employees = [
-      Employee(
-        name: "Aulia Rahma",
-        totalCuti: 3,
-        jenisCuti: ["Cuti Tahunan", "Cuti Sakit"],
-      ),
-      Employee(
-        name: "Rizky Firmansyah",
-        totalCuti: 1,
-        jenisCuti: ["Cuti Sakit"],
-      ),
-      Employee(
-        name: "Siti Nurlaila",
-        totalCuti: 2,
-        jenisCuti: ["Izin Mendesak", "Cuti Tahunan"],
-      ),
-    ];
-
-    // ============================================
-
-    totalEmployees = employees.length;
-    employeesWithLeave = employees.where((e) => e.totalCuti > 0).length;
-
-    filteredEmployees = List.from(employees);
     searchController.addListener(_runFilter);
+    _loadDepartmentData();
   }
 
+  Future<void> _loadDepartmentData() async {
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
 
-  // ===================== FILTER ======================
+    try {
+      final response = await _service.getDepartmentDetail(
+        departmentName: widget.departmentData['name'],
+      );
+
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        final data = response.data!;
+
+        setState(() {
+          employees = data.employees;
+          filteredEmployees = List.from(employees);
+          totalEmployees = data.totalEmployees;
+          employeesWithLeave = data.employeesWithLeave;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          errorMessage = response.message;
+          loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = "Error: $e";
+          loading = false;
+        });
+      }
+    }
+  }
+
   void _runFilter() {
     String keyword = searchController.text.toLowerCase();
 
     setState(() {
       filteredEmployees = employees.where((e) {
-        return e.name.toLowerCase().contains(keyword);
+        return e.employeeName.toLowerCase().contains(keyword);
       }).toList();
     });
   }
 
-  // ===================== EXPORT EXCEL ======================
+  // ✅ SIMPLIFIED: Export Excel using service
   Future<void> exportToExcel() async {
-    String csv = "No,Nama,Total Cuti Disetujui,Jenis Cuti\n";
-
-    for (int i = 0; i < filteredEmployees.length; i++) {
-      final e = filteredEmployees[i];
-
-      csv += "${i + 1},"
-          "${e.name},"
-          "${e.totalCuti},"
-          "\"${e.jenisCuti.join(", ")}\"\n";
+    if (filteredEmployees.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Tidak ada data untuk diekspor"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
 
-    Directory? directory;
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => WillPopScope(
+        onWillPop: () async => false,
+        child: const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                  SizedBox(height: 16),
+                  Text('Membuat file Excel...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
 
-    if (Platform.isAndroid) {
-      directory = Directory("/storage/emulated/0/Download");
-    } else {
-      directory = await getApplicationDocumentsDirectory();
+    try {
+      // ✅ Call service to generate Excel
+      final response = await _service.exportDepartmentExcel(
+        departmentName: widget.departmentData['name'],
+        employees: filteredEmployees,
+      );
+
+      // ✅ IMMEDIATELY close dialog (don't check mounted first)
+      if (Navigator.canPop(context)) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        // ✅ Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("File Excel berhasil dibuat"),
+            backgroundColor: Colors.green,
+            duration: Duration(milliseconds: 1500), // ✅ Shorter duration
+          ),
+        );
+
+        // ✅ Open file immediately (non-blocking)
+        _service.openExcelFile(response.data!).catchError((e) {
+          debugPrint("Error opening file: $e");
+        });
+
+        // ✅ Shorter delay before navigation
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        if (!mounted) return;
+
+        // ✅ Navigate to refresh
+        context.go('/admin/department-detail', extra: widget.departmentData);
+      } else {
+        // ✅ Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+              duration: const Duration(milliseconds: 1500),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // ✅ IMMEDIATELY close dialog on error
+      if (Navigator.canPop(context)) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Colors.red,
+            duration: const Duration(milliseconds: 2000),
+          ),
+        );
+      }
     }
-
-    String filePath =
-        "${directory.path}/Laporan_${widget.departmentData['name']}.csv";
-
-    final file = File(filePath);
-    await file.writeAsString(csv);
-
-    await OpenFilex.open(filePath);
   }
 
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
-  // =======================================================
   @override
   Widget build(BuildContext context) {
     final dept = widget.departmentData;
@@ -121,47 +203,76 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.go('/laporan-izin'),
         ),
         title: Text("Laporan Dept ${dept['name']}"),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeader(dept),
-              const SizedBox(height: 20),
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : errorMessage != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadDepartmentData,
+                      child: const Text("Retry"),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildHeader(dept),
+                    const SizedBox(height: 20),
 
-              ...filteredEmployees.asMap().entries.map((entry) {
-                final index = entry.key + 1;
-                final e = entry.value;
+                    if (filteredEmployees.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text(
+                          "Tidak ada data karyawan",
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      )
+                    else
+                      ...filteredEmployees.asMap().entries.map((entry) {
+                        final index = entry.key + 1;
+                        final e = entry.value;
 
-                return _buildEmployeeCard(
-                  index: index,
-                  name: e.name,
-                  totalCuti: e.totalCuti,
-                  jenisCuti: e.jenisCuti,
-                );
-              }).toList(),
+                        return _buildEmployeeCard(
+                          index: index,
+                          name: e.employeeName,
+                          totalCuti: e.totalApprovedLetters,
+                          jenisCuti: e.leaveTypes
+                              .map((lt) => "${lt.name} (${lt.date})")
+                              .toList(),
+                        );
+                      }).toList(),
 
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
       ),
     );
   }
 
-  // ============================ HEADER ================================
+  // ✅ EXISTING UI WIDGETS (UNCHANGED)
   Widget _buildHeader(Map<String, dynamic> dept) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 25, 20, 40),
       decoration: const BoxDecoration(
         color: Color(0xFF00A8E8),
-        borderRadius: BorderRadius.only(
-          bottomRight: Radius.circular(40),
-        ),
+        borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,17 +285,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            "Manager : Maisya",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           const SizedBox(height: 25),
-
           Row(
             children: [
               _buildEmployeeCountBox(dept),
@@ -208,10 +309,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
         ],
       ),
       child: Row(
@@ -220,11 +318,8 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
           const SizedBox(width: 8),
           Text(
             "$employeesWithLeave / $totalEmployees",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          )
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -239,10 +334,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
           ],
         ),
         child: Row(
@@ -265,9 +357,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
 
   Widget _buildExportButton() {
     return GestureDetector(
-      onTap: () async {
-        await exportToExcel();
-      },
+      onTap: exportToExcel,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -287,14 +377,13 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
-            )
+            ),
           ],
         ),
       ),
     );
   }
 
-  // =========================== CARD ===============================
   Widget _buildEmployeeCard({
     required int index,
     required String name,
@@ -309,10 +398,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10),
         ],
       ),
       child: Column(
@@ -320,10 +406,7 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
         children: [
           Text(
             "$index. $name",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(
@@ -354,10 +437,12 @@ class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
           ),
 
           const SizedBox(height: 6),
-          ...jenisCuti.map((e) => Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 4),
-                child: Text("• $e"),
-              )),
+          ...jenisCuti.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 4),
+              child: Text("• $e"),
+            ),
+          ),
         ],
       ),
     );
